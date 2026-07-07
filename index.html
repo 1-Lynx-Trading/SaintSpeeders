@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>St Speeders Racing Team | Engineering the Future of Hydrogen Racing</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        crimson: '#9A2040',
+        'crimson-dark': '#7A1A33',
+        'crimson-light': '#B83060',
+        yellow: '#FDF200',
+        'yellow-dark': '#D4CA00',
+        silver: '#8C8F90',
+        'silver-light': '#B0B3B5',
+        'silver-dark': '#6B6E70',
+        charcoal: '#1A1A1E',
+        'charcoal-light': '#2A2A2E',
+        'carbon': '#141416',
+        'carbon-light': '#1E1E22',
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+    }
+  }
+}
+</script>
+<style>
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #141416; }
+  ::-webkit-scrollbar-thumb { background: #9A2040; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #B83060; }
+
+  /* Loading Screen - Telemetry Style */
+  #loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #141416;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  .speedo-container { position: relative; width: 180px; height: 100px; overflow: hidden; }
+  .speedo-arc {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 180px; height: 180px; border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #2A2A2E;
+    border-right-color: #2A2A2E;
+    border-left-color: #2A2A2E;
+  }
+  .speedo-arc-fill {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) rotate(-135deg);
+    width: 180px; height: 180px; border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #9A2040;
+    border-right-color: #FDF200;
+    animation: speedoFill 2s ease-out forwards;
+    transform-origin: center center;
+  }
+  @keyframes speedoFill {
+    0% { clip-path: polygon(50% 50%, 50% 0%, 50% 0%); }
+    50% { clip-path: polygon(50% 50%, 50% 0%, 80% 10%); }
+    100% { clip-path: polygon(50% 50%, 20% 0%, 80% 10%); }
+  }
+  .speedo-needle {
+    position: absolute; bottom: 2px; left: 50%; width: 2px; height: 70px;
+    background: linear-gradient(to top, #FDF200, #9A2040);
+    transform-origin: bottom center;
+    animation: needleSwing 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    border-radius: 1px;
+    box-shadow: 0 0 8px rgba(253,242,0,0.4);
+  }
+  @keyframes needleSwing {
+    0% { transform: translateX(-50%) rotate(-135deg); }
+    30% { transform: translateX(-50%) rotate(-30deg); }
+    60% { transform: translateX(-50%) rotate(-90deg); }
+    80% { transform: translateX(-50%) rotate(-50deg); }
+    100% { transform: translateX(-50%) rotate(-60deg); }
+  }
+  .speedo-center {
+    position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #FDF200; box-shadow: 0 0 15px rgba(253,242,0,0.5);
+  }
+  .telem-bar {
+    width: 220px; height: 2px; background: #2A2A2E; border-radius: 1px;
+    overflow: hidden; margin-top: 6px;
+  }
+  .telem-bar-fill {
+    height: 100%; width: 0%; border-radius: 1px;
+    animation: telemFill 2s ease-out forwards;
+  }
+  .telem-bar-fill.red { background: linear-gradient(90deg, #9A2040, #B83060); }
+  .telem-bar-fill.yellow { background: linear-gradient(90deg, #FDF200, #D4CA00); animation-delay: 0.3s; }
+  .telem-bar-fill.mix { background: linear-gradient(90deg, #9A2040, #FDF200); animation-delay: 0.6s; }
+  @keyframes telemFill { 0% { width: 0%; } 100% { width: 100%; } }
+
+  .loader-text {
+    font-size: 9px; letter-spacing: 0.35em; text-transform: uppercase;
+    color: #8C8F90; margin-top: 20px;
+    animation: textPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes textPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* Checkered flag during load */
+  .checkered-strip {
+    display: flex; gap: 0; margin-top: 16px; overflow: hidden;
+    animation: flagScroll 1s linear infinite;
+  }
+  .checkered-strip div {
+    width: 10px; height: 10px; flex-shrink: 0;
+  }
+  @keyframes flagScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-20px); }
+  }
+
+  /* Scroll Progress - Lap Tracker */
+  #lap-tracker {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 100;
+    background: linear-gradient(90deg, #9A2040, #FDF200);
+    width: 0%; transition: width 0.1s linear;
+    box-shadow: 0 0 10px rgba(154,32,64,0.6), 0 0 20px rgba(253,242,0,0.3);
+  }
+
+  /* Carbon Fiber Texture */
+  .carbon-fiber {
+    background-image:
+      linear-gradient(45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255,255,255,0.02) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.02) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.02) 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+  }
+
+  /* Glassmorphism */
+  .glass {
+    background: rgba(26,26,30,0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .glass-light {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* Hero Light Streaks */
+  .light-streak {
+    position: absolute; height: 1px; opacity: 0;
+    background: linear-gradient(90deg, transparent, #FDF200, transparent);
+    animation: streakMove 4s ease-in-out infinite;
+  }
+  @keyframes streakMove {
+    0% { opacity: 0; transform: translateX(-100%) scaleX(0.3); }
+    20% { opacity: 0.8; }
+    80% { opacity: 0.6; }
+    100% { opacity: 0; transform: translateX(200vw) scaleX(1); }
+  }
+
+  /* Hydrogen Particles */
+  .h2-particle {
+    position: absolute; border-radius: 50%;
+    pointer-events: none;
+    animation: floatParticle linear infinite;
+  }
+  @keyframes floatParticle {
+    0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-100vh) translateX(50px) scale(0.3); opacity: 0; }
+  }
+
+  /* Racing Grid Background */
+  .racing-grid {
+    background-image:
+      linear-gradient(rgba(154,32,64,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(154,32,64,0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 60px 60px; }
+  }
+
+  /* Telemetry Line */
+  .telemetry-line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawLine 3s ease forwards;
+  }
+  @keyframes drawLine {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Scroll Reveal */
+  .reveal {
+    opacity: 0; transform: translateY(40px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.active { opacity: 1; transform: translateY(0); }
+  .reveal-left {
+    opacity: 0; transform: translateX(-60px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal-left.active { opacity: 1; transform: translateX(0); }
+  .reveal-right {
+    opacity: 0; transform: translateX(60px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal-right.active { opacity: 1; transform: translateX(0); }
+  .reveal-scale {
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal-scale.active { opacity: 1; transform: scale(1); }
+  .reveal-rotate {
+    opacity: 0; transform: translateY(30px) rotate(-2deg);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal-rotate.active { opacity: 1; transform: translateY(0) rotate(0deg); }
+
+  /* Button Motorsport Effect */
+  .btn-race {
+    position: relative; overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-race::before {
+    content: ''; position: absolute; top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.5s ease;
+  }
+  .btn-race:hover::before { left: 100%; }
+  .btn-race:active { transform: scale(0.97); }
+
+  /* Team Card Tilt */
+  .team-card {
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+    transform-style: preserve-3d;
+  }
+  .team-card:hover {
+    box-shadow: 0 20px 60px rgba(154,32,64,0.2), 0 0 30px rgba(253,242,0,0.05);
+  }
+
+  /* Sponsor Glow */
+  .sponsor-logo { transition: all 0.4s ease; filter: grayscale(0.6) brightness(0.7); }
+  .sponsor-logo:hover {
+    filter: grayscale(0) brightness(1.1);
+    box-shadow: 0 0 30px rgba(253,242,0,0.1);
+  }
+
+  /* Car Showcase */
+  .car-showcase {
+    transition: transform 0.1s ease-out;
+    filter: drop-shadow(0 20px 60px rgba(154,32,64,0.3));
+  }
+
+  /* Speedometer */
+  .speedo-needle-hero {
+    transform-origin: bottom center;
+    animation: speedoSwing 3s ease-in-out infinite;
+  }
+  @keyframes speedoSwing {
+    0%, 100% { transform: rotate(-60deg); }
+    50% { transform: rotate(60deg); }
+  }
+
+  /* Countdown */
+  .countdown-digit { font-variant-numeric: tabular-nums; }
+
+  /* Mobile Menu */
+  .mobile-menu {
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .mobile-menu.open { transform: translateX(0); }
+
+  /* Mouse Follow Light */
+  #mouse-light {
+    position: fixed; width: 400px; height: 400px;
+    border-radius: 50%; pointer-events: none; z-index: 1;
+    background: radial-gradient(circle, rgba(154,32,64,0.06) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s ease;
+  }
+
+  /* Section Divider */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(154,32,64,0.4), rgba(253,242,0,0.2), rgba(154,32,64,0.4), transparent);
+  }
+
+  /* H2 Molecule Animation */
+  .h2-molecule { animation: moleculeFloat 6s ease-in-out infinite; }
+  @keyframes moleculeFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-10px) rotate(5deg); }
+    75% { transform: translateY(5px) rotate(-3deg); }
+  }
+
+  /* Stat Counter */
+  .stat-value { font-variant-numeric: tabular-nums; }
+
+  /* Progress Bar Animation */
+  .progress-fill {
+    width: 0%; transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .progress-fill.animate { width: var(--target-width); }
+
+  /* Hotspot Pulse */
+  .hotspot-pulse {
+    animation: hotspotPulse 2s ease-in-out infinite;
+  }
+  @keyframes hotspotPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(253,242,0,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(253,242,0,0); }
+  }
+
+  /* Toast Notification */
+  .toast {
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Timeline connector animation */
+  .timeline-dot {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .timeline-dot:hover {
+    transform: scale(1.5);
+    box-shadow: 0 0 20px rgba(253,242,0,0.4);
+  }
+
+  /* Gallery image cinematic hover */
+  .gallery-item {
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .gallery-item:hover {
+    transform: scale(1.03);
+    z-index: 10;
+  }
+  .gallery-item:hover img {
+    filter: brightness(1.1) contrast(1.05);
+  }
+  .gallery-item:hover .gallery-overlay {
+    opacity: 1;
+  }
+
+  /* Smooth stagger for team member grid items */
+  .member-item {
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .member-item.active { opacity: 1; transform: translateY(0); }
+
+  /* Partner showcase */
+  .partner-card {
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .partner-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(253,242,0,0.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(253,242,0,0.05);
+  }
+
+  /* Section fade-in from different directions */
+  .fade-up-delay-1 { transition-delay: 0.08s !important; }
+  .fade-up-delay-2 { transition-delay: 0.16s !important; }
+  .fade-up-delay-3 { transition-delay: 0.24s !important; }
+  .fade-up-delay-4 { transition-delay: 0.32s !important; }
+  .fade-up-delay-5 { transition-delay: 0.40s !important; }
+</style>
+</head>
+<body class="bg-carbon text-white font-sans overflow-x-hidden">
+
+<!-- Loading Screen - Telemetry Style -->
+<div id="loader">
+  <!-- Speedometer -->
+  <div class="speedo-container">
+    <div class="speedo-arc"></div>
+    <div class="speedo-arc-fill"></div>
+    <div class="speedo-needle"></div>
+    <div class="speedo-center"></div>
+  </div>
+  <!-- Telemetry Bars -->
+  <div class="mt-8 flex flex-col items-center gap-1.5">
+    <div class="telem-bar"><div class="telem-bar-fill red"></div></div>
+    <div class="telem-bar"><div class="telem-bar-fill yellow"></div></div>
+    <div class="telem-bar"><div class="telem-bar-fill mix"></div></div>
+  </div>
+  <p class="loader-text">Initializing Race Systems</p>
+  <!-- Checkered Flag Strip -->
+  <div class="checkered-strip mt-4">
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+    <div style="background:#2A2A2E"></div><div style="background:#8C8F90"></div>
+  </div>
+</div>
+
+<!-- Lap Tracker (Scroll Progress) -->
+<div id="lap-tracker"></div>
+
+<!-- Mouse Follow Light -->
+<div id="mouse-light"></div>
+
+<!-- Navigation -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16 md:h-20">
+      <a href="#hero" class="flex items-center gap-3 group">
+        <img src="https://z-cdn-media.chatglm.cn/files/83fcfc38-9366-45c0-a5bc-e60848a338fb.png?auth_key=1883430423-f715bec2a1b54761a7bf6a98c90dcb79-0-8a4e003da812907da2400a2040683729" alt="St Speeders" class="w-10 h-10 md:w-12 md:h-12 object-contain transition-transform duration-300 group-hover:scale-110">
+        <div class="hidden sm:block">
+          <span class="text-sm font-bold tracking-wider text-white">ST SPEEDERS</span>
+          <span class="block text-[10px] tracking-[0.2em] text-silver uppercase">Racing Team</span>
+        </div>
+      </a>
+      <div class="hidden lg:flex items-center gap-1">
+        <a href="#about" class="nav-link px-4 py-2 text-sm text-silver-light hover:text-white transition-colors duration-200">About H2GP</a>
+        <a href="#team" class="nav-link px-4 py-2 text-sm text-silver-light hover:text-white transition-colors duration-200">Team</a>
+        <a href="#car" class="nav-link px-4 py-2 text-sm text-silver-light hover:text-white transition-colors duration-200">The Car</a>
+        <a href="#engineering" class="nav-link px-4 py-2 text-sm text-silver-light hover:text-white transition-colors duration-200">Engineering</a>
+        <a href="#partners" class="nav-link px-4 py-2 text-sm text-silver-light hover:text-white transition-colors duration-200">Partners</a>
+        <a href="#contact" class="ml-4 btn-race bg-crimson hover:bg-crimson-light text-white text-sm font-semibold px-6 py-2.5 rounded-sm tracking-wide">CONTACT US</a>
+      </div>
+      <button id="mobile-toggle" class="lg:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5 group">
+        <span class="w-6 h-0.5 bg-white transition-all duration-300 group-[.active]:rotate-45 group-[.active]:translate-y-2"></span>
+        <span class="w-6 h-0.5 bg-white transition-all duration-300 group-[.active]:opacity-0"></span>
+        <span class="w-6 h-0.5 bg-white transition-all duration-300 group-[.active]:-rotate-45 group-[.active]:-translate-y-2"></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="mobile-menu fixed inset-0 z-40 bg-carbon/95 backdrop-blur-xl pt-24 px-8">
+  <div class="flex flex-col gap-2">
+    <a href="#about" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">About H2GP</a>
+    <a href="#team" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">The Team</a>
+    <a href="#car" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">The Car</a>
+    <a href="#engineering" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">Engineering</a>
+    <a href="#partners" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">Partners</a>
+    <a href="#news" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">News</a>
+    <a href="#contact" class="mobile-link text-2xl font-bold text-white py-3 border-b border-white/5 hover:text-yellow transition-colors">Contact</a>
+    <a href="#contact" class="mt-6 btn-race bg-crimson text-white text-center text-lg font-bold py-4 rounded-sm tracking-wide">BECOME A PARTNER</a>
+  </div>
+</div>
+
+<!-- ==================== HERO SECTION ==================== -->
+<section id="hero" class="relative min-h-screen flex items-center justify-center overflow-hidden carbon-fiber">
+  <div class="absolute inset-0 racing-grid opacity-50"></div>
+  <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/50 to-transparent z-[2]"></div>
+  <div class="absolute inset-0 bg-gradient-to-r from-crimson/10 via-transparent to-yellow/5 z-[2]"></div>
+  <div class="absolute inset-0 z-[1]">
+    <img src="https://picsum.photos/seed/hydrogen-race-track-dark/1920/1080.jpg" alt="Racing Track" class="w-full h-full object-cover opacity-30" style="animation: heroPan 30s ease-in-out infinite alternate;">
+  </div>
+  <style>
+    @keyframes heroPan {
+      0% { transform: scale(1.1) translateX(-2%); }
+      100% { transform: scale(1.15) translateX(2%); }
+    }
+  </style>
+  <div class="light-streak" style="top:20%; width:300px; animation-delay:0s;"></div>
+  <div class="light-streak" style="top:45%; width:200px; animation-delay:1.5s;"></div>
+  <div class="light-streak" style="top:70%; width:250px; animation-delay:3s;"></div>
+  <div class="light-streak" style="top:35%; width:180px; animation-delay:2s; background:linear-gradient(90deg, transparent, #9A2040, transparent);"></div>
+  <div id="h2-particles" class="absolute inset-0 z-[3] pointer-events-none overflow-hidden"></div>
+  <div class="absolute top-0 right-0 w-1/2 h-full z-[2] pointer-events-none">
+    <div class="absolute top-0 right-[20%] w-px h-full bg-gradient-to-b from-transparent via-crimson/20 to-transparent transform rotate-12 origin-top-right"></div>
+    <div class="absolute top-0 right-[35%] w-px h-full bg-gradient-to-b from-transparent via-yellow/10 to-transparent transform rotate-12 origin-top-right"></div>
+  </div>
+
+  <div class="relative z-10 text-center px-4 sm:px-6 max-w-5xl mx-auto">
+    <div class="reveal-scale mb-8" style="transition-delay: 0.3s;">
+      <img src="https://z-cdn-media.chatglm.cn/files/83fcfc38-9366-45c0-a5bc-e60848a338fb.png?auth_key=1883430423-f715bec2a1b54761a7bf6a98c90dcb79-0-8a4e003da812907da2400a2040683729" alt="St Speeders Racing Team" class="w-28 h-28 md:w-36 md:h-36 object-contain mx-auto drop-shadow-2xl" style="filter: drop-shadow(0 0 30px rgba(154,32,64,0.4));">
+    </div>
+    <div class="reveal" style="transition-delay: 0.5s;">
+      <p class="text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-yellow mb-4">H2GP Victorian Race 2026</p>
+      <h1 class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-2">
+        <span class="text-white">ST SPEEDERS</span>
+      </h1>
+      <h2 class="text-xl sm:text-2xl md:text-3xl font-light tracking-[0.15em] text-silver-light uppercase mb-6">Racing Team</h2>
+    </div>
+    <div class="reveal" style="transition-delay: 0.7s;">
+      <p class="text-base sm:text-lg md:text-xl text-silver max-w-2xl mx-auto leading-relaxed mb-10">
+        Engineering the Future of <span class="text-yellow font-semibold">Hydrogen Racing</span>. Powered by innovation, driven by competition.
+      </p>
+    </div>
+    <div class="reveal flex flex-col sm:flex-row items-center justify-center gap-4" style="transition-delay: 0.9s;">
+      <a href="#team" class="btn-race bg-crimson hover:bg-crimson-light text-white font-bold text-sm px-8 py-4 rounded-sm tracking-wider uppercase w-full sm:w-auto text-center">
+        Meet The Team
+      </a>
+      <a href="#car" class="btn-race bg-transparent border-2 border-silver/30 hover:border-yellow text-white hover:text-yellow font-bold text-sm px-8 py-4 rounded-sm tracking-wider uppercase w-full sm:w-auto text-center transition-colors duration-300">
+        Our Car
+      </a>
+      <a href="#partners" class="btn-race bg-yellow hover:bg-yellow-dark text-carbon font-bold text-sm px-8 py-4 rounded-sm tracking-wider uppercase w-full sm:w-auto text-center">
+        Become A Partner
+      </a>
+    </div>
+    <div class="reveal mt-16" style="transition-delay: 1.2s;">
+      <div class="flex flex-col items-center gap-2 text-silver/50">
+        <span class="text-[10px] tracking-[0.3em] uppercase">Scroll to Explore</span>
+        <div class="w-5 h-8 border border-silver/30 rounded-full flex justify-center pt-1.5">
+          <div class="w-1 h-2 bg-yellow rounded-full" style="animation: scrollDot 2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    @keyframes scrollDot {
+      0%, 100% { transform: translateY(0); opacity: 1; }
+      50% { transform: translateY(8px); opacity: 0.3; }
+    }
+  </style>
+  <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-crimson via-yellow to-crimson z-10"></div>
+</section>
+
+<!-- ==================== COUNTDOWN SECTION ==================== -->
+<section class="relative py-8 bg-charcoal carbon-fiber border-y border-white/5">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 bg-yellow rounded-full animate-pulse"></div>
+        <span class="text-sm font-semibold tracking-wider text-silver-light uppercase">6 Weeks Until Race</span>
+      </div>
+      <div id="countdown" class="flex items-center gap-3 sm:gap-6">
+        <div class="text-center">
+          <div class="countdown-digit text-2xl sm:text-3xl font-black text-white" id="cd-days">00</div>
+          <div class="text-[10px] tracking-wider text-silver uppercase">Days</div>
+        </div>
+        <span class="text-crimson text-xl font-light">:</span>
+        <div class="text-center">
+          <div class="countdown-digit text-2xl sm:text-3xl font-black text-white" id="cd-hours">00</div>
+          <div class="text-[10px] tracking-wider text-silver uppercase">Hours</div>
+        </div>
+        <span class="text-crimson text-xl font-light">:</span>
+        <div class="text-center">
+          <div class="countdown-digit text-2xl sm:text-3xl font-black text-white" id="cd-mins">00</div>
+          <div class="text-[10px] tracking-wider text-silver uppercase">Mins</div>
+        </div>
+        <span class="text-crimson text-xl font-light">:</span>
+        <div class="text-center">
+          <div class="countdown-digit text-2xl sm:text-3xl font-black text-yellow" id="cd-secs">00</div>
+          <div class="text-[10px] tracking-wider text-silver uppercase">Secs</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="iconify text-crimson text-lg" data-icon="mdi:map-marker"></span>
+        <span class="text-sm text-silver">H2GP Victorian Race 2026</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ABOUT H2GP SECTION ==================== -->
+<section id="about" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-carbon via-charcoal to-carbon"></div>
+  <div class="absolute inset-0 carbon-fiber opacity-30"></div>
+  <div class="absolute right-0 top-0 w-1/2 h-full opacity-5 pointer-events-none">
+    <svg viewBox="0 0 400 600" class="w-full h-full">
+      <polyline class="telemetry-line" fill="none" stroke="#FDF200" stroke-width="1.5" points="0,500 50,480 100,350 150,400 200,200 250,250 300,100 350,150 400,50"/>
+      <polyline class="telemetry-line" fill="none" stroke="#9A2040" stroke-width="1" points="0,550 50,530 100,500 150,450 200,350 250,300 300,200 350,180 400,120" style="animation-delay:0.5s"/>
+    </svg>
+  </div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal mb-16 md:mb-20">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-12 h-px bg-crimson"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-crimson">The Competition</span>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        What is <span class="text-yellow">H2GP</span>?
+      </h2>
+      <p class="text-silver text-lg max-w-2xl">The world's premier hydrogen fuel cell racing competition for students — where engineering meets endurance.</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-8 lg:gap-16 items-center mb-20">
+      <div class="reveal-left space-y-6">
+        <div class="glass rounded-sm p-6 hover:border-crimson/30 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 flex items-center justify-center flex-shrink-0 mt-1">
+              <span class="iconify text-crimson text-xl" data-icon="mdi:fuel-cell"></span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white mb-2">Hydrogen Fuel Cell Technology</h3>
+              <p class="text-silver text-sm leading-relaxed">Students design, build, and race remote-controlled cars powered by hydrogen fuel cells — converting chemical energy directly into electricity with zero emissions.</p>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-sm p-6 hover:border-yellow/20 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-yellow/10 flex items-center justify-center flex-shrink-0 mt-1">
+              <span class="iconify text-yellow text-xl" data-icon="mdi:trophy"></span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white mb-2">Global Competition</h3>
+              <p class="text-silver text-sm leading-relaxed">Teams from around the world compete in endurance races, testing not just speed but efficiency, reliability, and strategic energy management.</p>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-sm p-6 hover:border-crimson/30 transition-colors duration-300">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 flex items-center justify-center flex-shrink-0 mt-1">
+              <span class="iconify text-crimson text-xl" data-icon="mdi:leaf"></span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white mb-2">Why Hydrogen Matters</h3>
+              <p class="text-silver text-sm leading-relaxed">Hydrogen is the most abundant element in the universe. As a fuel, it produces only water — representing the future of clean energy and sustainable transportation.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal-right">
+        <div class="glass rounded-sm p-8 relative overflow-hidden">
+          <div class="absolute top-4 right-4 text-[10px] tracking-wider text-silver/40 uppercase">Energy Flow Diagram</div>
+          <div class="h2-molecule flex flex-col items-center gap-6 py-4">
+            <div class="relative">
+              <div class="flex items-center gap-3">
+                <div class="w-14 h-14 rounded-full bg-crimson/20 border border-crimson/40 flex items-center justify-center">
+                  <span class="text-xl font-black text-crimson">H</span>
+                </div>
+                <div class="w-6 h-0.5 bg-silver/40"></div>
+                <div class="w-14 h-14 rounded-full bg-crimson/20 border border-crimson/40 flex items-center justify-center">
+                  <span class="text-xl font-black text-crimson">H</span>
+                </div>
+              </div>
+              <div class="text-center mt-2">
+                <span class="text-xs tracking-wider text-silver uppercase">Hydrogen Gas (H₂)</span>
+              </div>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-px h-8 bg-gradient-to-b from-crimson/50 to-yellow/50"></div>
+              <span class="iconify text-yellow text-xl" data-icon="mdi:arrow-down"></span>
+            </div>
+            <div class="w-full max-w-xs glass-light rounded-sm p-4 border border-yellow/10">
+              <div class="flex items-center gap-3">
+                <span class="iconify text-yellow text-2xl" data-icon="mdi:fuel-cell"></span>
+                <div>
+                  <div class="text-sm font-bold text-white">Fuel Cell Stack</div>
+                  <div class="text-xs text-silver">Electrochemical Conversion</div>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-px h-8 bg-gradient-to-b from-yellow/50 to-silver/50"></div>
+              <span class="iconify text-silver text-xl" data-icon="mdi:arrow-down"></span>
+            </div>
+            <div class="flex items-center gap-6">
+              <div class="text-center">
+                <div class="w-16 h-16 rounded-full border-2 border-yellow/40 flex items-center justify-center mb-2">
+                  <span class="iconify text-yellow text-2xl" data-icon="mdi:lightning-bolt"></span>
+                </div>
+                <span class="text-xs tracking-wider text-silver uppercase">Electricity</span>
+              </div>
+              <div class="text-center">
+                <div class="w-16 h-16 rounded-full border-2 border-blue-400/40 flex items-center justify-center mb-2">
+                  <span class="iconify text-blue-400 text-2xl" data-icon="mdi:water"></span>
+                </div>
+                <span class="text-xs tracking-wider text-silver uppercase">H₂O</span>
+              </div>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-px h-8 bg-gradient-to-b from-silver/50 to-crimson/50"></div>
+              <span class="iconify text-crimson text-xl" data-icon="mdi:arrow-down"></span>
+            </div>
+            <div class="w-full max-w-xs glass-light rounded-sm p-4 border border-crimson/10">
+              <div class="flex items-center gap-3">
+                <span class="iconify text-crimson text-2xl" data-icon="mdi:engine"></span>
+                <div>
+                  <div class="text-sm font-bold text-white">Electric Motor</div>
+                  <div class="text-xs text-silver">Pure Power → Zero Emissions</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Updated Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+      <div class="reveal glass rounded-sm p-6 text-center fade-up-delay-1">
+        <div class="stat-value text-3xl md:text-4xl font-black text-yellow" data-target="35">0</div>
+        <div class="text-xs tracking-wider text-silver uppercase mt-1">Team Members</div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center fade-up-delay-2">
+        <div class="stat-value text-3xl md:text-4xl font-black text-white" data-target="3">0</div>
+        <div class="text-xs tracking-wider text-silver uppercase mt-1">Months of Development</div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center fade-up-delay-3">
+        <div class="stat-value text-3xl md:text-4xl font-black text-crimson-light" data-target="50">0</div>
+        <div class="text-xs tracking-wider text-silver uppercase mt-1">Engineering Hours+</div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center fade-up-delay-4">
+        <div class="stat-value text-3xl md:text-4xl font-black text-yellow" data-target="0">0</div>
+        <div class="text-xs tracking-wider text-silver uppercase mt-1">Carbon Emissions</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== THE TEAM SECTION ==================== -->
+<section id="team" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-carbon"></div>
+  <div class="absolute inset-0 carbon-fiber opacity-20"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal text-center mb-16 md:mb-20">
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <div class="w-12 h-px bg-crimson"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-crimson">Our Crew</span>
+        <div class="w-12 h-px bg-crimson"></div>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        The <span class="text-yellow">Team</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl mx-auto">Thirty-five passionate students united by a single mission — to engineer a championship-winning hydrogen race car.</p>
+    </div>
+
+    <!-- Leadership / Team Leaders -->
+    <div class="reveal mb-4">
+      <h3 class="text-sm font-bold tracking-[0.2em] uppercase text-silver mb-6 flex items-center gap-2">
+        <span class="w-2 h-2 bg-crimson rounded-full"></span> Team Leaders
+      </h3>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-6 mb-14">
+      <div class="reveal team-card glass rounded-sm overflow-hidden group cursor-pointer fade-up-delay-1" onmousemove="tiltCard(event, this)" onmouseleave="resetCard(this)">
+        <div class="relative h-56 overflow-hidden">
+          <img src="https://picsum.photos/seed/leader-dimitri/400/300.jpg" alt="Dimitri Zeidan" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/30 to-transparent"></div>
+          <div class="absolute top-3 right-3 bg-crimson/90 text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-sm">Team Leader</div>
+        </div>
+        <div class="p-5">
+          <h4 class="text-lg font-bold text-white">Dimitri Zeidan</h4>
+          <p class="text-xs tracking-wider text-crimson uppercase font-semibold mb-2">Team Principal</p>
+          <p class="text-silver text-sm leading-relaxed">Leads all team operations and race strategy with a focus on engineering excellence.</p>
+        </div>
+      </div>
+      <div class="reveal team-card glass rounded-sm overflow-hidden group cursor-pointer fade-up-delay-2" onmousemove="tiltCard(event, this)" onmouseleave="resetCard(this)">
+        <div class="relative h-56 overflow-hidden">
+          <img src="https://picsum.photos/seed/leader-marco/400/300.jpg" alt="Marco Matthew" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/30 to-transparent"></div>
+          <div class="absolute top-3 right-3 bg-yellow/90 text-carbon text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-sm">Team Leader</div>
+        </div>
+        <div class="p-5">
+          <h4 class="text-lg font-bold text-white">Marco Matthew</h4>
+          <p class="text-xs tracking-wider text-yellow uppercase font-semibold mb-2">Engineering Lead</p>
+          <p class="text-silver text-sm leading-relaxed">Oversees technical design, manufacturing processes, and performance optimization.</p>
+        </div>
+      </div>
+      <div class="reveal team-card glass rounded-sm overflow-hidden group cursor-pointer fade-up-delay-3" onmousemove="tiltCard(event, this)" onmouseleave="resetCard(this)">
+        <div class="relative h-56 overflow-hidden">
+          <img src="https://picsum.photos/seed/leader-rylynn/400/300.jpg" alt="Rylynn Miranda" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/30 to-transparent"></div>
+          <div class="absolute top-3 right-3 bg-silver/80 text-carbon text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-sm">Team Leader</div>
+        </div>
+        <div class="p-5">
+          <h4 class="text-lg font-bold text-white">Rylynn Miranda</h4>
+          <p class="text-xs tracking-wider text-silver uppercase font-semibold mb-2">Operations Lead</p>
+          <p class="text-silver text-sm leading-relaxed">Manages logistics, communications, and ensures the team is competition-ready.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supervisors -->
+    <div class="reveal mb-4">
+      <h3 class="text-sm font-bold tracking-[0.2em] uppercase text-silver mb-6 flex items-center gap-2">
+        <span class="w-2 h-2 bg-yellow rounded-full"></span> Supervisors
+      </h3>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-6 mb-14">
+      <div class="reveal team-card glass rounded-sm p-6 flex items-center gap-5 group cursor-pointer fade-up-delay-1" onmousemove="tiltCard(event, this)" onmouseleave="resetCard(this)">
+        <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow/30 flex-shrink-0 group-hover:border-yellow transition-colors duration-300">
+          <img src="https://picsum.photos/seed/supervisor-john/100/100.jpg" alt="Mr John Wall" class="w-full h-full object-cover">
+        </div>
+        <div>
+          <h4 class="text-lg font-bold text-white">Mr John Wall</h4>
+          <p class="text-xs tracking-wider text-yellow uppercase font-semibold">Supervisor</p>
+          <p class="text-silver text-sm mt-1">Guiding the team's technical and strategic direction.</p>
+        </div>
+      </div>
+      <div class="reveal team-card glass rounded-sm p-6 flex items-center gap-5 group cursor-pointer fade-up-delay-2" onmousemove="tiltCard(event, this)" onmouseleave="resetCard(this)">
+        <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow/30 flex-shrink-0 group-hover:border-yellow transition-colors duration-300">
+          <img src="https://picsum.photos/seed/supervisor-michael/100/100.jpg" alt="Mr Michael Ling" class="w-full h-full object-cover">
+        </div>
+        <div>
+          <h4 class="text-lg font-bold text-white">Mr Michael Ling</h4>
+          <p class="text-xs tracking-wider text-yellow uppercase font-semibold">Supervisor</p>
+          <p class="text-silver text-sm mt-1">Supporting engineering development and competition preparation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rest of the Team -->
+    <div class="reveal mb-4">
+      <h3 class="text-sm font-bold tracking-[0.2em] uppercase text-silver mb-6 flex items-center gap-2">
+        <span class="w-2 h-2 bg-crimson rounded-full"></span> Rest of the Team
+      </h3>
+    </div>
+    <div id="team-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <!-- Members will be injected via JS for stagger animation -->
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== THE CAR SECTION ==================== -->
+<section id="car" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-charcoal via-carbon to-charcoal"></div>
+  <div class="absolute inset-0 racing-grid opacity-20"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal text-center mb-16 md:mb-20">
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <div class="w-12 h-px bg-yellow"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-yellow">Machine</span>
+        <div class="w-12 h-px bg-yellow"></div>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        The <span class="text-yellow">Car</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl mx-auto">Every component engineered for maximum efficiency, minimum weight, and race-winning performance.</p>
+    </div>
+
+    <!-- Car Showcase - F1 Red Bull on black background -->
+    <div class="reveal-scale mb-16">
+      <div class="relative glass rounded-sm overflow-hidden" id="car-container">
+        <div class="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-black">
+          <img src="https://picsum.photos/seed/f1-redbull-racing-car-black/1400/600.jpg" alt="St Speeders Race Car" class="car-showcase w-full h-full object-cover" id="car-image" onmousemove="rotateCar(event)" onmouseleave="resetCar()">
+
+          <!-- Hotspots -->
+          <div class="absolute top-[25%] left-[20%] group cursor-pointer" onclick="showHotspot('aero')">
+            <div class="w-5 h-5 bg-yellow rounded-full hotspot-pulse flex items-center justify-center">
+              <div class="w-2 h-2 bg-black rounded-full"></div>
+            </div>
+            <div class="absolute left-8 top-1/2 -translate-y-1/2 glass rounded-sm px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
+              <p class="text-xs font-bold text-yellow">Aerodynamics</p>
+              <p class="text-[10px] text-silver">CFD-optimized body</p>
+            </div>
+          </div>
+          <div class="absolute top-[40%] left-[50%] group cursor-pointer" onclick="showHotspot('fuelcell')">
+            <div class="w-5 h-5 bg-crimson rounded-full hotspot-pulse flex items-center justify-center">
+              <div class="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+            <div class="absolute left-8 top-1/2 -translate-y-1/2 glass rounded-sm px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
+              <p class="text-xs font-bold text-crimson-light">Fuel Cell Stack</p>
+              <p class="text-[10px] text-silver">PEM hydrogen fuel cell</p>
+            </div>
+          </div>
+          <div class="absolute top-[60%] left-[75%] group cursor-pointer" onclick="showHotspot('motor')">
+            <div class="w-5 h-5 bg-yellow rounded-full hotspot-pulse flex items-center justify-center">
+              <div class="w-2 h-2 bg-black rounded-full"></div>
+            </div>
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 glass rounded-sm px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
+              <p class="text-xs font-bold text-yellow">Electric Motor</p>
+              <p class="text-[10px] text-silver">High-efficiency BLDC</p>
+            </div>
+          </div>
+
+          <div class="absolute bottom-4 left-4 glass rounded-sm px-4 py-2">
+            <p class="text-[10px] tracking-wider text-silver/60 uppercase">St Speeders H2-01</p>
+            <p class="text-sm font-bold text-white">2026 Race Specification</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="reveal glass rounded-sm p-6 text-center border-t-2 border-crimson fade-up-delay-1">
+        <span class="iconify text-crimson text-3xl mb-3 mx-auto block" data-icon="mdi:speedometer"></span>
+        <div class="text-2xl font-black text-white mb-1">Top Speed</div>
+        <div class="text-3xl font-black text-yellow">35<span class="text-lg text-silver"> km/h</span></div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center border-t-2 border-yellow fade-up-delay-2">
+        <span class="iconify text-yellow text-3xl mb-3 mx-auto block" data-icon="mdi:weight"></span>
+        <div class="text-2xl font-black text-white mb-1">Weight</div>
+        <div class="text-3xl font-black text-yellow">1.2<span class="text-lg text-silver"> kg</span></div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center border-t-2 border-crimson fade-up-delay-3">
+        <span class="iconify text-crimson text-3xl mb-3 mx-auto block" data-icon="mdi:fuel-cell"></span>
+        <div class="text-2xl font-black text-white mb-1">Power</div>
+        <div class="text-3xl font-black text-yellow">30<span class="text-lg text-silver"> W</span></div>
+      </div>
+      <div class="reveal glass rounded-sm p-6 text-center border-t-2 border-yellow fade-up-delay-4">
+        <span class="iconify text-yellow text-3xl mb-3 mx-auto block" data-icon="mdi:battery-charging-high"></span>
+        <div class="text-2xl font-black text-white mb-1">Efficiency</div>
+        <div class="text-3xl font-black text-yellow">60<span class="text-lg text-silver">%</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== ENGINEERING & DEVELOPMENT ==================== -->
+<section id="engineering" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-carbon"></div>
+  <div class="absolute inset-0 carbon-fiber opacity-20"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal mb-16 md:mb-20">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-12 h-px bg-crimson"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-crimson">Development Pipeline</span>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        Engineering & <span class="text-yellow">Development</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl">From concept to competition — our systematic approach to building a championship contender.</p>
+    </div>
+    <div class="space-y-4 mb-20">
+      <div class="reveal glass rounded-sm overflow-hidden fade-up-delay-1">
+        <button class="process-toggle w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors" onclick="toggleProcess(this)">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 border border-crimson/30 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-black text-crimson">01</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Design & Concept</h3>
+              <p class="text-sm text-silver hidden sm:block">CAD modeling, CFD simulation, and conceptual design</p>
+            </div>
+          </div>
+          <span class="iconify text-silver text-xl transition-transform duration-300 process-arrow" data-icon="mdi:chevron-down"></span>
+        </button>
+        <div class="process-content hidden px-6 pb-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <p class="text-silver text-sm leading-relaxed mb-4">Our design process begins with extensive research into aerodynamic principles, weight distribution, and hydrogen fuel cell integration. Using industry-standard CAD software and computational fluid dynamics, we iterate through dozens of design concepts before selecting the optimal configuration.</p>
+              <div class="space-y-3">
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-silver">CAD Design Completion</span><span class="text-yellow font-bold">100%</span></div>
+                  <div class="h-1.5 bg-charcoal-light rounded-full overflow-hidden"><div class="progress-fill h-full bg-gradient-to-r from-crimson to-yellow rounded-full" style="--target-width:100%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-silver">CFD Analysis</span><span class="text-yellow font-bold">95%</span></div>
+                  <div class="h-1.5 bg-charcoal-light rounded-full overflow-hidden"><div class="progress-fill h-full bg-gradient-to-r from-crimson to-yellow rounded-full" style="--target-width:95%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-silver">Design Review</span><span class="text-yellow font-bold">90%</span></div>
+                  <div class="h-1.5 bg-charcoal-light rounded-full overflow-hidden"><div class="progress-fill h-full bg-gradient-to-r from-crimson to-yellow rounded-full" style="--target-width:90%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="relative rounded-sm overflow-hidden h-48 md:h-auto">
+              <img src="https://picsum.photos/seed/cad-design-racing/600/400.jpg" alt="CAD Design" class="w-full h-full object-cover opacity-60">
+              <div class="absolute inset-0 bg-gradient-to-t from-carbon/80 to-transparent"></div>
+              <div class="absolute bottom-3 left-3 text-[10px] tracking-wider text-silver/60 uppercase">CAD Render — H2-01 Body</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal glass rounded-sm overflow-hidden fade-up-delay-2">
+        <button class="process-toggle w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors" onclick="toggleProcess(this)">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-sm bg-yellow/10 border border-yellow/30 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-black text-yellow">02</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Testing & Validation</h3>
+              <p class="text-sm text-silver hidden sm:block">Wind tunnel testing, component stress analysis, fuel cell bench testing</p>
+            </div>
+          </div>
+          <span class="iconify text-silver text-xl transition-transform duration-300 process-arrow" data-icon="mdi:chevron-down"></span>
+        </button>
+        <div class="process-content hidden px-6 pb-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <p class="text-silver text-sm leading-relaxed mb-4">Every component undergoes rigorous testing before integration. We test fuel cell performance under varying loads, validate structural integrity through finite element analysis, and conduct wind tunnel sessions to verify aerodynamic predictions.</p>
+              <div class="space-y-3">
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-silver">Fuel Cell Testing</span><span class="text-yellow font-bold">85%</span></div>
+                  <div class="h-1.5 bg-charcoal-light rounded-full overflow-hidden"><div class="progress-fill h-full bg-gradient-to-r from-crimson to-yellow rounded-full" style="--target-width:85%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-silver">Structural Analysis</span><span class="text-yellow font-bold">80%</span></div>
+                  <div class="h-1.5 bg-charcoal-light rounded-full overflow-hidden"><div class="progress-fill h-full bg-gradient-to-r from-crimson to-yellow rounded-full" style="--target-width:80%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="relative rounded-sm overflow-hidden h-48 md:h-auto">
+              <img src="https://picsum.photos/seed/wind-tunnel-test/600/400.jpg" alt="Testing" class="w-full h-full object-cover opacity-60">
+              <div class="absolute inset-0 bg-gradient-to-t from-carbon/80 to-transparent"></div>
+              <div class="absolute bottom-3 left-3 text-[10px] tracking-wider text-silver/60 uppercase">Wind Tunnel Session #12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal glass rounded-sm overflow-hidden fade-up-delay-3">
+        <button class="process-toggle w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors" onclick="toggleProcess(this)">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 border border-crimson/30 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-black text-crimson">03</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Manufacturing & Assembly</h3>
+              <p class="text-sm text-silver hidden sm:block">3D printing, composite layup, precision machining, final assembly</p>
+            </div>
+          </div>
+          <span class="iconify text-silver text-xl transition-transform duration-300 process-arrow" data-icon="mdi:chevron-down"></span>
+        </button>
+        <div class="process-content hidden px-6 pb-6">
+          <p class="text-silver text-sm leading-relaxed">Manufacturing combines advanced 3D printing for complex geometries, carbon fiber composite layup for the chassis and body, and precision CNC machining for critical components. Each part is quality-checked before assembly begins.</p>
+        </div>
+      </div>
+
+      <div class="reveal glass rounded-sm overflow-hidden fade-up-delay-4">
+        <button class="process-toggle w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors" onclick="toggleProcess(this)">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-sm bg-yellow/10 border border-yellow/30 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-black text-yellow">04</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Data Analysis & Optimization</h3>
+              <p class="text-sm text-silver hidden sm:block">Telemetry analysis, performance optimization, iterative improvements</p>
+            </div>
+          </div>
+          <span class="iconify text-silver text-xl transition-transform duration-300 process-arrow" data-icon="mdi:chevron-down"></span>
+        </button>
+        <div class="process-content hidden px-6 pb-6">
+          <p class="text-silver text-sm leading-relaxed">Post-test data is analyzed to identify performance bottlenecks. We track power output, hydrogen consumption, motor temperatures, and lap times to continuously optimize every aspect of the car's performance.</p>
+        </div>
+      </div>
+
+      <div class="reveal glass rounded-sm overflow-hidden fade-up-delay-5">
+        <button class="process-toggle w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors" onclick="toggleProcess(this)">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 border border-crimson/30 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-black text-crimson">05</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Race Strategy & Execution</h3>
+              <p class="text-sm text-silver hidden sm:block">Energy management, pit stop planning, driver coaching, race-day execution</p>
+            </div>
+          </div>
+          <span class="iconify text-silver text-xl transition-transform duration-300 process-arrow" data-icon="mdi:chevron-down"></span>
+        </button>
+        <div class="process-content hidden px-6 pb-6">
+          <p class="text-silver text-sm leading-relaxed">Race strategy is developed through data-driven analysis. We plan hydrogen refueling windows, energy management profiles for different race phases, and communication protocols to ensure flawless race-day execution.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telemetry Dashboard -->
+    <div class="reveal-scale">
+      <div class="glass rounded-sm p-6 md:p-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-bold text-white">Live Telemetry Dashboard</h3>
+            <p class="text-xs text-silver">Real-time performance monitoring</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-xs text-green-500 font-medium">LIVE</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-charcoal-light rounded-sm p-4">
+            <div class="text-[10px] tracking-wider text-silver uppercase mb-1">Speed</div>
+            <div class="text-2xl font-black text-white">28.4 <span class="text-sm text-silver">km/h</span></div>
+          </div>
+          <div class="bg-charcoal-light rounded-sm p-4">
+            <div class="text-[10px] tracking-wider text-silver uppercase mb-1">Power</div>
+            <div class="text-2xl font-black text-yellow">24.2 <span class="text-sm text-silver">W</span></div>
+          </div>
+          <div class="bg-charcoal-light rounded-sm p-4">
+            <div class="text-[10px] tracking-wider text-silver uppercase mb-1">H₂ Flow</div>
+            <div class="text-2xl font-black text-crimson-light">0.8 <span class="text-sm text-silver">L/min</span></div>
+          </div>
+          <div class="bg-charcoal-light rounded-sm p-4">
+            <div class="text-[10px] tracking-wider text-silver uppercase mb-1">Temp</div>
+            <div class="text-2xl font-black text-white">42 <span class="text-sm text-silver">°C</span></div>
+          </div>
+        </div>
+        <div class="bg-charcoal-light rounded-sm p-4 h-40 md:h-52 relative overflow-hidden">
+          <svg viewBox="0 0 800 200" class="w-full h-full" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="telemGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#FDF200" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#FDF200" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="50" x2="800" y2="50" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <line x1="0" y1="100" x2="800" y2="100" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <line x1="0" y1="150" x2="800" y2="150" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <path d="M0,160 Q50,140 100,130 T200,100 T300,80 T400,110 T500,70 T600,90 T700,60 T800,80 L800,200 L0,200 Z" fill="url(#telemGrad)"/>
+            <polyline class="telemetry-line" fill="none" stroke="#FDF200" stroke-width="2" points="0,160 50,145 100,130 150,115 200,100 250,90 300,80 350,95 400,110 450,85 500,70 550,80 600,90 650,75 700,60 750,70 800,80"/>
+            <circle cx="800" cy="80" r="4" fill="#FDF200" class="animate-pulse"/>
+          </svg>
+          <div class="absolute top-2 right-3 text-[10px] text-silver/50">SPEED PROFILE — LAP 3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== RACE PREPARATION TIMELINE ==================== -->
+<section id="preparation" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-charcoal via-carbon to-charcoal"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal text-center mb-16 md:mb-20">
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <div class="w-12 h-px bg-crimson"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-crimson">Road to the Grid</span>
+        <div class="w-12 h-px bg-crimson"></div>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        Race <span class="text-yellow">Preparation</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl mx-auto">Our journey from the workshop to the starting grid.</p>
+    </div>
+
+    <!-- Updated Timeline -->
+    <div class="relative max-w-3xl mx-auto">
+      <div class="absolute left-6 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-crimson via-yellow to-crimson md:-translate-x-px"></div>
+
+      <div class="space-y-10">
+        <!-- March -->
+        <div class="reveal relative flex items-start gap-6 md:gap-0 fade-up-delay-1">
+          <div class="absolute left-6 md:left-1/2 w-4 h-4 bg-crimson rounded-full -translate-x-1/2 mt-1.5 ring-4 ring-carbon z-10 timeline-dot cursor-pointer"></div>
+          <div class="md:w-1/2 md:pr-12 pl-14 md:pl-0 md:text-right">
+            <div class="glass rounded-sm p-5 inline-block">
+              <span class="text-xs font-bold text-crimson tracking-wider">MARCH</span>
+              <h3 class="text-lg font-bold text-white mt-1">Team Formation</h3>
+              <p class="text-silver text-sm mt-1">Recruiting 35 members, assigning roles, and establishing our competition strategy.</p>
+            </div>
+          </div>
+          <div class="md:w-1/2 hidden md:block"></div>
+        </div>
+
+        <!-- April -->
+        <div class="reveal relative flex items-start gap-6 md:gap-0 fade-up-delay-2">
+          <div class="absolute left-6 md:left-1/2 w-4 h-4 bg-yellow rounded-full -translate-x-1/2 mt-1.5 ring-4 ring-carbon z-10 timeline-dot cursor-pointer"></div>
+          <div class="md:w-1/2 hidden md:block"></div>
+          <div class="md:w-1/2 md:pl-12 pl-14">
+            <div class="glass rounded-sm p-5 inline-block">
+              <span class="text-xs font-bold text-yellow tracking-wider">APRIL</span>
+              <h3 class="text-lg font-bold text-white mt-1">Vehicle Design Begins</h3>
+              <p class="text-silver text-sm mt-1">CAD modeling, aerodynamic simulation, and fuel cell system integration design.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- May -->
+        <div class="reveal relative flex items-start gap-6 md:gap-0 fade-up-delay-3">
+          <div class="absolute left-6 md:left-1/2 w-4 h-4 bg-crimson rounded-full -translate-x-1/2 mt-1.5 ring-4 ring-carbon z-10 timeline-dot cursor-pointer"></div>
+          <div class="md:w-1/2 md:pr-12 pl-14 md:pl-0 md:text-right">
+            <div class="glass rounded-sm p-5 inline-block">
+              <span class="text-xs font-bold text-crimson tracking-wider">MAY</span>
+              <h3 class="text-lg font-bold text-white mt-1">Vehicle Construction Begins</h3>
+              <p class="text-silver text-sm mt-1">Fabrication of chassis, bodywork, assembly of fuel cell system and electronics.</p>
+            </div>
+          </div>
+          <div class="md:w-1/2 hidden md:block"></div>
+        </div>
+
+        <!-- June -->
+        <div class="reveal relative flex items-start gap-6 md:gap-0 fade-up-delay-4">
+          <div class="absolute left-6 md:left-1/2 w-4 h-4 bg-yellow rounded-full -translate-x-1/2 mt-1.5 ring-4 ring-carbon z-10 timeline-dot cursor-pointer"></div>
+          <div class="md:w-1/2 hidden md:block"></div>
+          <div class="md:w-1/2 md:pl-12 pl-14">
+            <div class="glass rounded-sm p-5 inline-block">
+              <span class="text-xs font-bold text-yellow tracking-wider">JUNE</span>
+              <h3 class="text-lg font-bold text-white mt-1">Testing & Performance Optimisation</h3>
+              <p class="text-silver text-sm mt-1">Track testing, data analysis, driver training, and final performance tuning.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- August - Race Day -->
+        <div class="reveal relative flex items-start gap-6 md:gap-0 fade-up-delay-5">
+          <div class="absolute left-6 md:left-1/2 w-5 h-5 bg-gradient-to-br from-crimson to-yellow rounded-full -translate-x-1/2 mt-1 ring-4 ring-carbon z-10 animate-pulse timeline-dot cursor-pointer"></div>
+          <div class="md:w-1/2 md:pr-12 pl-14 md:pl-0 md:text-right">
+            <div class="glass rounded-sm p-5 inline-block border border-yellow/20">
+              <span class="text-xs font-bold text-yellow tracking-wider">AUGUST</span>
+              <h3 class="text-lg font-bold text-white mt-1">H2GP Victorian Race 2026 🏁</h3>
+              <p class="text-silver text-sm mt-1">Race day execution — endurance racing, pit stops, strategy calls, and the pursuit of victory.</p>
+            </div>
+          </div>
+          <div class="md:w-1/2 hidden md:block"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Automotive Gallery -->
+    <div class="reveal-scale mt-20">
+      <div class="grid grid-cols-2 gap-3 md:gap-4">
+        <div class="gallery-item relative overflow-hidden rounded-sm cursor-pointer row-span-2">
+          <img src="https://picsum.photos/seed/bugatti-chiron-dark/600/800.jpg" alt="Bugatti" class="w-full h-full object-cover transition-all duration-700 min-h-[300px] md:min-h-[500px]">
+          <div class="gallery-overlay absolute inset-0 bg-gradient-to-t from-carbon/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 flex items-end p-4 md:p-6">
+            <div>
+              <p class="text-xs tracking-[0.3em] text-yellow uppercase font-bold">Performance Inspiration</p>
+              <p class="text-xl md:text-2xl font-black text-white mt-1">Bugatti</p>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item relative overflow-hidden rounded-sm cursor-pointer">
+          <img src="https://picsum.photos/seed/ferrari-f40-race/600/400.jpg" alt="Ferrari" class="w-full h-full object-cover transition-all duration-700 min-h-[150px] md:min-h-[240px]">
+          <div class="gallery-overlay absolute inset-0 bg-gradient-to-t from-carbon/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 flex items-end p-4 md:p-6">
+            <div>
+              <p class="text-xs tracking-[0.3em] text-yellow uppercase font-bold">Performance Inspiration</p>
+              <p class="text-xl md:text-2xl font-black text-white mt-1">Ferrari</p>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item relative overflow-hidden rounded-sm cursor-pointer">
+          <img src="https://picsum.photos/seed/mercedes-amg-gt-dark/600/400.jpg" alt="Mercedes-AMG" class="w-full h-full object-cover transition-all duration-700 min-h-[150px] md:min-h-[240px]">
+          <div class="gallery-overlay absolute inset-0 bg-gradient-to-t from-carbon/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 flex items-end p-4 md:p-6">
+            <div>
+              <p class="text-xs tracking-[0.3em] text-yellow uppercase font-bold">Performance Inspiration</p>
+              <p class="text-xl md:text-2xl font-black text-white mt-1">Mercedes-AMG</p>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item relative overflow-hidden rounded-sm cursor-pointer col-span-2">
+          <img src="https://picsum.photos/seed/koenigsegg-jesko-night/1200/400.jpg" alt="Koenigsegg" class="w-full h-full object-cover transition-all duration-700 min-h-[200px] md:min-h-[300px]">
+          <div class="gallery-overlay absolute inset-0 bg-gradient-to-t from-carbon/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 flex items-end p-4 md:p-6">
+            <div>
+              <p class="text-xs tracking-[0.3em] text-yellow uppercase font-bold">Performance Inspiration</p>
+              <p class="text-xl md:text-2xl font-black text-white mt-1">Koenigsegg</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== PARTNERS SECTION ==================== -->
+<section id="partners" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-carbon"></div>
+  <div class="absolute inset-0 carbon-fiber opacity-20"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal text-center mb-16 md:mb-20">
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <div class="w-12 h-px bg-yellow"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-yellow">Partners</span>
+        <div class="w-12 h-px bg-yellow"></div>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        Our <span class="text-yellow">Partners</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl mx-auto">Proudly supported by industry leaders who believe in the future of hydrogen racing.</p>
+    </div>
+
+    <!-- Partner Showcase -->
+    <div class="reveal-scale max-w-lg mx-auto">
+      <div class="partner-card glass rounded-sm p-10 md:p-16 text-center cursor-pointer">
+        <div class="relative inline-block">
+          <img src="https://z-cdn-media.chatglm.cn/files/853c3392-b25a-4d02-834c-203ae2152362.png?auth_key=1883430423-8cbc3e585fda47d9ae9321befa26f9e9-0-eebad7927a9d1ba11062ef2b407f9637" alt="Horizon Educational" class="h-16 md:h-20 w-auto object-contain mx-auto transition-all duration-500 partner-card:hover:brightness-110">
+        </div>
+        <h3 class="text-xl font-bold text-white mt-6">Horizon</h3>
+        <p class="text-silver text-sm mt-2 max-w-xs mx-auto">Educational Partner — Empowering the next generation of hydrogen engineers.</p>
+        <div class="mt-6 flex justify-center gap-1">
+          <div class="w-8 h-0.5 bg-crimson rounded-full"></div>
+          <div class="w-8 h-0.5 bg-yellow rounded-full"></div>
+          <div class="w-8 h-0.5 bg-silver rounded-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Partner CTA -->
+    <div class="reveal mt-16">
+      <div class="relative glass rounded-sm overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-crimson/10 to-yellow/5"></div>
+        <div class="relative z-10 p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div>
+            <h3 class="text-2xl font-black text-white mb-2">Partner With Us</h3>
+            <p class="text-silver max-w-lg">Support the next generation of engineers. Join our mission to accelerate hydrogen racing education.</p>
+          </div>
+          <a href="#contact" class="btn-race bg-yellow hover:bg-yellow-dark text-carbon font-bold text-sm px-8 py-4 rounded-sm tracking-wider uppercase text-center whitespace-nowrap">
+            Become A Partner
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== NEWS & UPDATES ==================== -->
+<section id="news" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-b from-charcoal via-carbon to-charcoal"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal mb-16 md:mb-20">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-12 h-px bg-crimson"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-crimson">Latest</span>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        News & <span class="text-yellow">Updates</span>
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- News Card 1 -->
+      <div class="reveal-rotate glass rounded-sm overflow-hidden group cursor-pointer fade-up-delay-1">
+        <div class="relative h-56 md:h-64 overflow-hidden">
+          <img src="https://picsum.photos/seed/hydrogen-car-painted-finished/700/500.jpg" alt="Hydrogen Car Paint" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/40 to-transparent"></div>
+          <div class="absolute top-3 left-3 bg-crimson/90 text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-sm">Milestone</div>
+        </div>
+        <div class="p-6">
+          <p class="text-[10px] text-silver tracking-wider uppercase mb-2">Latest Update</p>
+          <h3 class="text-xl font-bold text-white mb-3 group-hover:text-yellow transition-colors">Finished Painting the Hydrogen Car</h3>
+          <p class="text-silver text-sm leading-relaxed">The St Speeders hydrogen-powered race car has officially been completed with its final paintwork, showcasing the team's signature crimson and yellow livery. This marks a significant milestone in our journey toward the H2GP Victorian Race 2026. The car is now ready for final testing and performance validation before competition day, with all body panels perfectly finished and aerodynamic surfaces optimized for maximum efficiency.</p>
+        </div>
+      </div>
+
+      <!-- News Card 2 -->
+      <div class="reveal-rotate glass rounded-sm overflow-hidden group cursor-pointer fade-up-delay-2">
+        <div class="relative h-56 md:h-64 overflow-hidden">
+          <img src="https://picsum.photos/seed/hydrogen-fuel-cell-charged/700/500.jpg" alt="Hydrogen Cells" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/40 to-transparent"></div>
+          <div class="absolute top-3 left-3 bg-yellow/90 text-carbon text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-sm">Technology</div>
+        </div>
+        <div class="p-6">
+          <p class="text-[10px] text-silver tracking-wider uppercase mb-2">Latest Update</p>
+          <h3 class="text-xl font-bold text-white mb-3 group-hover:text-yellow transition-colors">Fully Charged Hydrogen Cells</h3>
+          <p class="text-silver text-sm leading-relaxed">All hydrogen fuel cells have been fully prepared, charged, and rigorously tested, marking another major milestone toward race readiness. Our fuel cell stack has passed every performance benchmark, delivering consistent power output and exceptional efficiency. With this critical system now validated, the team can focus entirely on driver training and race strategy in the final weeks leading up to the H2GP Victorian Race 2026.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ==================== CONTACT SECTION ==================== -->
+<section id="contact" class="relative py-24 md:py-32 overflow-hidden">
+  <div class="absolute inset-0 bg-carbon"></div>
+  <div class="absolute inset-0 carbon-fiber opacity-20"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal text-center mb-16 md:mb-20">
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <div class="w-12 h-px bg-yellow"></div>
+        <span class="text-xs font-bold tracking-[0.3em] uppercase text-yellow">Get In Touch</span>
+        <div class="w-12 h-px bg-yellow"></div>
+      </div>
+      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+        Contact <span class="text-yellow">Us</span>
+      </h2>
+      <p class="text-silver text-lg max-w-2xl mx-auto">Interested in joining, partnering, or learning more? We'd love to hear from you.</p>
+    </div>
+
+    <div class="grid md:grid-cols-5 gap-8">
+      <!-- Contact Info (No social media) -->
+      <div class="md:col-span-2 space-y-6">
+        <div class="reveal-left glass rounded-sm p-6 fade-up-delay-1">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 flex items-center justify-center flex-shrink-0">
+              <span class="iconify text-crimson text-xl" data-icon="mdi:school"></span>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white mb-1">School</h4>
+              <p class="text-silver text-sm">St Peters College<br>Hydrogen Racing Program</p>
+            </div>
+          </div>
+        </div>
+        <div class="reveal-left glass rounded-sm p-6 fade-up-delay-2">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-yellow/10 flex items-center justify-center flex-shrink-0">
+              <span class="iconify text-yellow text-xl" data-icon="mdi:email-outline"></span>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white mb-1">Email</h4>
+              <a href="mailto:kular21@stpeters.vic.edu.au" class="text-silver text-sm hover:text-yellow transition-colors">kular21@stpeters.vic.edu.au</a>
+            </div>
+          </div>
+        </div>
+        <div class="reveal-left glass rounded-sm p-6 fade-up-delay-3">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-sm bg-crimson/10 flex items-center justify-center flex-shrink-0">
+              <span class="iconify text-crimson text-xl" data-icon="mdi:map-marker-outline"></span>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white mb-1">Workshop</h4>
+              <p class="text-silver text-sm">St Peters Clyde North</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Form - mailto: functional -->
+      <div class="md:col-span-3">
+        <div class="reveal-right glass rounded-sm p-6 md:p-8">
+          <form id="contact-form" onsubmit="handleMailto(event)">
+            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="text-[10px] tracking-wider text-silver uppercase block mb-2">Name *</label>
+                <input type="text" id="form-name" required class="w-full bg-charcoal-light border border-white/10 rounded-sm px-4 py-3 text-white text-sm focus:outline-none focus:border-crimson/50 transition-colors placeholder:text-silver-dark" placeholder="Your Name">
+              </div>
+              <div>
+                <label class="text-[10px] tracking-wider text-silver uppercase block mb-2">Email *</label>
+                <input type="email" id="form-email" required class="w-full bg-charcoal-light border border-white/10 rounded-sm px-4 py-3 text-white text-sm focus:outline-none focus:border-crimson/50 transition-colors placeholder:text-silver-dark" placeholder="your@email.com">
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="text-[10px] tracking-wider text-silver uppercase block mb-2">Inquiry Type</label>
+              <select id="form-type" class="w-full bg-charcoal-light border border-white/10 rounded-sm px-4 py-3 text-white text-sm focus:outline-none focus:border-crimson/50 transition-colors appearance-none cursor-pointer">
+                <option value="" class="bg-charcoal-light">Select an option</option>
+                <option value="Join The Team" class="bg-charcoal-light">Join The Team</option>
+                <option value="Partnership Inquiry" class="bg-charcoal-light">Partnership Inquiry</option>
+                <option value="Media & Press" class="bg-charcoal-light">Media & Press</option>
+                <option value="General Question" class="bg-charcoal-light">General Question</option>
+              </select>
+            </div>
+            <div class="mb-6">
+              <label class="text-[10px] tracking-wider text-silver uppercase block mb-2">Message *</label>
+              <textarea id="form-message" required rows="5" class="w-full bg-charcoal-light border border-white/10 rounded-sm px-4 py-3 text-white text-sm focus:outline-none focus:border-crimson/50 transition-colors placeholder:text-silver-dark resize-none" placeholder="Tell us about your inquiry..."></textarea>
+            </div>
+            <button type="submit" class="btn-race w-full bg-crimson hover:bg-crimson-light text-white font-bold text-sm py-4 rounded-sm tracking-wider uppercase transition-colors">
+              Send Message
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="relative py-16 border-t border-white/5">
+  <div class="absolute inset-0 bg-carbon"></div>
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+      <div class="flex flex-col items-center md:items-start gap-4">
+        <div class="flex items-center gap-3">
+          <img src="https://z-cdn-media.chatglm.cn/files/83fcfc38-9366-45c0-a5bc-e60848a338fb.png?auth_key=1883430423-f715bec2a1b54761a7bf6a98c90dcb79-0-8a4e003da812907da2400a2040683729" alt="St Speeders" class="w-12 h-12 object-contain">
+          <div>
+            <span class="text-sm font-bold tracking-wider text-white">ST SPEEDERS</span>
+            <span class="block text-[10px] tracking-[0.2em] text-silver uppercase">Racing Team</span>
+          </div>
+        </div>
+        <p class="text-silver text-xs text-center md:text-left max-w-sm">Engineering the future of hydrogen racing. A student team competing in the H2GP Victorian Race 2026.</p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-6">
+        <a href="#about" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">About</a>
+        <a href="#team" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">Team</a>
+        <a href="#car" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">The Car</a>
+        <a href="#engineering" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">Engineering</a>
+        <a href="#partners" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">Partners</a>
+        <a href="#contact" class="text-xs text-silver hover:text-white transition-colors tracking-wider uppercase">Contact</a>
+      </div>
+      <div class="text-center md:text-right">
+        <p class="text-silver-dark text-xs">&copy; 2026 St Speeders Racing Team</p>
+        <p class="text-silver-dark text-[10px] mt-1">All rights reserved. H2GP Competitor.</p>
+      </div>
+    </div>
+    <div class="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2 text-silver-dark text-[10px] tracking-wider">
+        <span class="iconify text-crimson" data-icon="mdi:fuel-cell"></span>
+        <span>POWERED BY HYDROGEN</span>
+      </div>
+      <div class="flex items-center gap-4 text-silver-dark text-[10px] tracking-wider">
+        <span>ST PETERS COLLEGE — CLYDE NORTH</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast fixed bottom-6 right-6 z-50 glass rounded-sm px-6 py-4 max-w-sm border border-yellow/20">
+  <div class="flex items-start gap-3">
+    <span class="iconify text-yellow text-xl flex-shrink-0 mt-0.5" data-icon="mdi:check-circle"></span>
+    <div>
+      <p class="text-sm font-bold text-white" id="toast-title">Success</p>
+      <p class="text-xs text-silver mt-0.5" id="toast-message"></p>
+    </div>
+    <button onclick="hideToast()" class="text-silver hover:text-white ml-2 flex-shrink-0">
+      <span class="iconify text-sm" data-icon="mdi:close"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+// ===== Team Members Data =====
+const teamMembers = [
+  'Angel Adhikari','Miss Angel Adhikari','Naga Alemayehu','Abel Antony Soji',
+  'Aaryan Bagga','Pahanya Bandara','Isabella Berciano Hernandez','Harnoor Bhangu',
+  'Ethan Bigaignon','Keirra Bulner','Isaiah Chaliker','Cordell Don Paul',
+  'Declan Gozmao','Vorlak Kan','Hargun Kaur','Raj Khatusuria',
+  'Harrison Kozak','Risean Kulathungage','Arya Kulkarni','Khang Le',
+  'Amasha Liyanage','Blake Masterson','Logan Misso','Pranav Pagitharan',
+  'Rehan Peiris','Oliver Prebanda','Kritee Regmi','Manny Sallan',
+  'Gurnawaz Singh','Yuvi Singh','Jenish Soni'
+];
+
+// Populate team grid
+const teamGrid = document.getElementById('team-grid');
+teamMembers.forEach((name, i) => {
+  const seed = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2);
+  const div = document.createElement('div');
+  div.className = 'member-item team-card glass rounded-sm p-4 text-center group cursor-pointer';
+  div.style.transitionDelay = `${0.05 * i}s`;
+  div.setAttribute('onmousemove', 'tiltCard(event, this)');
+  div.setAttribute('onmouseleave', 'resetCard(this)');
+  div.innerHTML = `
+    <div class="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-2 border-transparent group-hover:border-crimson transition-all duration-300 flex items-center justify-center bg-charcoal-light">
+      <img src="https://picsum.photos/seed/${seed}/100/100.jpg" alt="${name}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <span class="text-sm font-bold text-silver-dark hidden items-center justify-center w-full h-full">${initials}</span>
+    </div>
+    <h4 class="text-xs font-bold text-white leading-tight">${name}</h4>
+  `;
+  teamGrid.appendChild(div);
+});
+
+// ===== LOADING SCREEN =====
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+    document.querySelectorAll('#hero .reveal, #hero .reveal-scale').forEach(el => {
+      setTimeout(() => el.classList.add('active'), 200);
+    });
+  }, 2500);
+});
+
+// ===== SCROLL PROGRESS =====
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = (scrollTop / docHeight) * 100;
+  document.getElementById('lap-tracker').style.width = progress + '%';
+});
+
+// ===== MOUSE FOLLOW LIGHT =====
+const mouseLight = document.getElementById('mouse-light');
+document.addEventListener('mousemove', (e) => {
+  mouseLight.style.left = e.clientX + 'px';
+  mouseLight.style.top = e.clientY + 'px';
+});
+document.addEventListener('mouseleave', () => { mouseLight.style.opacity = '0'; });
+document.addEventListener('mouseenter', () => { mouseLight.style.opacity = '1'; });
+
+// ===== NAVBAR =====
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 80) {
+    navbar.style.background = 'rgba(20,20,22,0.85)';
+    navbar.style.backdropFilter = 'blur(16px)';
+    navbar.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+  } else {
+    navbar.style.background = 'transparent';
+    navbar.style.backdropFilter = 'none';
+    navbar.style.borderBottom = 'none';
+  }
+});
+
+// ===== MOBILE MENU =====
+const mobileToggle = document.getElementById('mobile-toggle');
+const mobileMenu = document.getElementById('mobile-menu');
+mobileToggle.addEventListener('click', () => {
+  mobileToggle.classList.toggle('active');
+  mobileMenu.classList.toggle('open');
+  document.body.style.overflow = mobileMenu.classList.contains('open') ? 'hidden' : '';
+});
+document.querySelectorAll('.mobile-link').forEach(link => {
+  link.addEventListener('click', () => {
+    mobileToggle.classList.remove('active');
+    mobileMenu.classList.remove('open');
+    document.body.style.overflow = '';
+  });
+});
+
+// ===== SCROLL REVEAL OBSERVER =====
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('active');
+      entry.target.querySelectorAll('.progress-fill').forEach(bar => bar.classList.add('animate'));
+      entry.target.querySelectorAll('.stat-value[data-target]').forEach(counter => animateCounter(counter));
+      entry.target.querySelectorAll('.member-item').forEach(item => item.classList.add('active'));
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-rotate').forEach(el => {
+  revealObserver.observe(el);
+});
+// Also observe the team grid parent
+if (teamGrid) revealObserver.observe(teamGrid);
+
+// ===== STAT COUNTER =====
+function animateCounter(el) {
+  if (el.dataset.animated) return;
+  el.dataset.animated = 'true';
+  const target = parseInt(el.dataset.target);
+  const duration = 2000;
+  const start = performance.now();
+  function update(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(target * eased);
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ===== HYDROGEN PARTICLES =====
+function createH2Particles() {
+  const container = document.getElementById('h2-particles');
+  if (!container) return;
+  const colors = ['rgba(253,242,0,0.4)', 'rgba(154,32,64,0.3)', 'rgba(140,143,144,0.2)'];
+  for (let i = 0; i < 25; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'h2-particle';
+    const size = Math.random() * 4 + 2;
+    particle.style.cssText = `
+      width: ${size}px; height: ${size}px;
+      left: ${Math.random() * 100}%;
+      bottom: -10px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      animation-duration: ${Math.random() * 10 + 6}s;
+      animation-delay: ${Math.random() * 12}s;
+      box-shadow: 0 0 ${size * 2}px ${colors[Math.floor(Math.random() * colors.length)]};
+    `;
+    container.appendChild(particle);
+  }
+}
+createH2Particles();
+
+// ===== COUNTDOWN TIMER (6 weeks from now) =====
+function updateCountdown() {
+  const raceDate = new Date();
+  raceDate.setDate(raceDate.getDate() + 42); // 6 weeks
+  raceDate.setHours(9, 0, 0, 0);
+  const now = new Date();
+  const diff = raceDate - now;
+  if (diff <= 0) {
+    document.getElementById('cd-days').textContent = '00';
+    document.getElementById('cd-hours').textContent = '00';
+    document.getElementById('cd-mins').textContent = '00';
+    document.getElementById('cd-secs').textContent = '00';
+    return;
+  }
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const secs = Math.floor((diff % (1000 * 60)) / 1000);
+  document.getElementById('cd-days').textContent = String(days).padStart(2, '0');
+  document.getElementById('cd-hours').textContent = String(hours).padStart(2, '0');
+  document.getElementById('cd-mins').textContent = String(mins).padStart(2, '0');
+  document.getElementById('cd-secs').textContent = String(secs).padStart(2, '0');
+}
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+// ===== TILT CARDS =====
+function tiltCard(e, card) {
+  const rect = card.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const rotateX = (y - centerY) / 15;
+  const rotateY = (centerX - x) / 15;
+  card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+}
+function resetCard(card) {
+  card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale(1)';
+}
+
+// ===== CAR ROTATION =====
+function rotateCar(e) {
+  const img = document.getElementById('car-image');
+  const container = document.getElementById('car-container');
+  const rect = container.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width - 0.5;
+  const y = (e.clientY - rect.top) / rect.height - 0.5;
+  img.style.transform = `scale(1.05) translateX(${x * 20}px) translateY(${y * 10}px)`;
+}
+function resetCar() {
+  document.getElementById('car-image').style.transform = 'scale(1)';
+}
+
+// ===== HOTSPOT =====
+function showHotspot(type) {
+  const info = {
+    aero: 'Aerodynamics: CFD-optimized body shell with 12% less drag than V1',
+    fuelcell: 'Fuel Cell: 5W PEM fuel cell stack with custom membrane configuration',
+    motor: 'Motor: High-efficiency BLDC motor with custom gear ratio'
+  };
+  showToast(info[type] || 'Technical information');
+}
+
+// ===== PROCESS TOGGLE =====
+function toggleProcess(btn) {
+  const content = btn.nextElementSibling;
+  const arrow = btn.querySelector('.process-arrow');
+  const isOpen = !content.classList.contains('hidden');
+  document.querySelectorAll('.process-content').forEach(c => c.classList.add('hidden'));
+  document.querySelectorAll('.process-arrow').forEach(a => a.style.transform = 'rotate(0deg)');
+  if (!isOpen) {
+    content.classList.remove('hidden');
+    arrow.style.transform = 'rotate(180deg)';
+    setTimeout(() => {
+      content.querySelectorAll('.progress-fill').forEach(bar => bar.classList.add('animate'));
+    }, 100);
+  }
+}
+
+// ===== MAILTO FORM =====
+function handleMailto(e) {
+  e.preventDefault();
+  const name = document.getElementById('form-name').value.trim();
+  const email = document.getElementById('form-email').value.trim();
+  const type = document.getElementById('form-type').value || 'General Inquiry';
+  const message = document.getElementById('form-message').value.trim();
+
+  const subject = encodeURIComponent(`[St Speeders] ${type} — from ${name}`);
+  const body = encodeURIComponent(
+    `Name: ${name}\nEmail: ${email}\nInquiry Type: ${type}\n\nMessage:\n${message}`
+  );
+
+  window.location.href = `mailto:kular21@stpeters.vic.edu.au?subject=${subject}&body=${body}`;
+
+  showToast('Opening your email client...', 'Sending Message');
+}
+
+// ===== TOAST =====
+function showToast(message, title = 'Success') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-message').textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => hideToast(), 4000);
+}
+function hideToast() {
+  document.getElementById('toast').classList.remove('show');
+}
+
+// ===== SMOOTH SCROLL =====
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      const offset = 80;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  });
+});
+</script>
+
+</body>
+</html>
